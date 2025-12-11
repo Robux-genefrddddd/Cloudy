@@ -1,12 +1,20 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  GithubAuthProvider,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,10 +22,49 @@ export default function Login() {
     setError("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Login:", { email, password });
-    } catch (err) {
-      setError("Invalid email or password");
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error.code === "auth/invalid-credential") {
+        setError("Invalid email or password");
+      } else if (error.code === "auth/user-not-found") {
+        setError("User not found");
+      } else if (error.code === "auth/wrong-password") {
+        setError("Wrong password");
+      } else {
+        setError(error.message || "An error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGithubSignIn = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const provider = new GithubAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "GitHub sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -139,39 +186,43 @@ export default function Login() {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              className="bg-gray-50 border border-gray-200 py-3 rounded-lg hover:bg-gray-100 font-medium transition text-gray-900"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="bg-gray-50 border border-gray-200 py-3 rounded-lg hover:bg-gray-100 font-medium transition text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Google
             </button>
             <button
               type="button"
-              className="bg-gray-50 border border-gray-200 py-3 rounded-lg hover:bg-gray-100 font-medium transition text-gray-900"
+              onClick={handleGithubSignIn}
+              disabled={loading}
+              className="bg-gray-50 border border-gray-200 py-3 rounded-lg hover:bg-gray-100 font-medium transition text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               GitHub
             </button>
           </div>
+        </form>
 
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-gray-600 text-sm">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="text-blue-900 hover:text-blue-800 font-bold transition"
-              >
-                Create one
-              </Link>
-            </p>
-          </div>
-
-          {/* Back Link */}
-          <Link
-            to="/"
-            className="block mt-6 text-center text-sm text-gray-600 hover:text-gray-900 transition"
-          >
-            ← Back to home
-          </Link>
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-600 text-sm">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="text-blue-900 hover:text-blue-800 font-bold transition"
+            >
+              Create one
+            </Link>
+          </p>
         </div>
+
+        {/* Back Link */}
+        <Link
+          to="/"
+          className="block mt-6 text-center text-sm text-gray-600 hover:text-gray-900 transition"
+        >
+          ← Back to home
+        </Link>
       </div>
     </div>
   );
